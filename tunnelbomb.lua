@@ -11,6 +11,7 @@ minetest.register_craft({
 })
 
 local tunnelbomb_drops = {}
+local vm_area, vm_nodes
 minetest.register_node("mining_plus:tunnelbomb", {
 	description = "Tunnel Bomb",
 	tiles = {"mining_tunnelbomb_top.png", "mining_tunnelbomb_top.png", "mining_tunnelbomb_side.png",
@@ -38,73 +39,52 @@ minetest.register_node("mining_plus:tunnelbomb", {
 			local protect_node = {x=99999, y=99999, z=99999}
 			tunnelbomb_drops = {}
 			tunnelbomb_drops["default:cobble"] = 0
+			local p1, p2
 			if(node.param2 == 0) then --z++
-				for posX = -1, 1 do
-				for posY = 0, 2 do
-				for posZ = 1, 7 do
-					local xpos = {x=pos.x+posX, y=pos.y+posY, z=pos.z+posZ}
-					if minetest.is_protected(xpos, player_name) then
-						if(not protected) then
-							protect_node = xpos
-						end
-						protected = true
-					else
-						tunnelbomb_dig(xpos)
-					end
-				end
-				end
-				end
+				p1 = {-1, 0, 1}
+				p2 = {1, 2, 7}
 			elseif(node.param2 == 1) then --x++
-				for posX = 1, 7 do
-				for posY = 0, 2 do
-				for posZ = -1, 1 do
-					local xpos = {x=pos.x+posX, y=pos.y+posY, z=pos.z+posZ}
-					if minetest.is_protected(xpos, player_name) then
-						if(not protected) then
-							protect_node = xpos
-						end
-						protected = true
-					else
-						tunnelbomb_dig(xpos)
-					end
-				end
-				end
-				end
+				p1 = {-1, 0, -1}
+				p2 = {7, 2, 1}
 			elseif(node.param2 == 2) then --z--
-				for posX = -1, 1 do
-				for posY = 0, 2 do
-				for posZ = -1, -7,-1 do
-					local xpos = {x=pos.x+posX, y=pos.y+posY, z=pos.z+posZ}
-					if minetest.is_protected(xpos, player_name) then
-						if(not protected) then
-							protect_node = xpos
-						end
-						protected = true
-					else
-						tunnelbomb_dig(xpos)
-					end
-				end
-				end
-				end
+				p1 = {-1, 0, -7}
+				p2 = {1, 2, -1}
 			elseif(node.param2 == 3) then --x--
-				for posX = -1, -7,-1 do
-				for posY = 0, 2 do
-				for posZ = -1, 1 do
-					local xpos = {x=pos.x+posX, y=pos.y+posY, z=pos.z+posZ}
-					if minetest.is_protected(xpos, player_name) then
-						if(not protected) then
-							protect_node = xpos
-						end
-						protected = true
-					else
-						tunnelbomb_dig(xpos)
-					end
-				end
-				end
-				end
+				p1 = {-7, 0, -1}
+				p2 = {-1, 2, 1}
 			else
 				minetest.chat_send_player(player_name, "Too bad, now you've lost one tunnel bomb.")
+				return
 			end
+
+			local manip = minetest.get_voxel_manip()
+			local emerged_pos1, emerged_pos2 = manip:read_from_map(
+				{x=pos.x+p1[1], y=pos.y+p1[2], z=pos.z+p1[3]},
+				{x=pos.x+p2[1], y=pos.y+p2[2], z=pos.z+p2[3]}
+			)
+			vm_area = VoxelArea:new({MinEdge=emerged_pos1, MaxEdge=emerged_pos2})
+			vm_nodes = manip:get_data()
+
+			for posX = p1[1], p2[1] do
+				for posY = p1[2], p2[2] do
+					for posZ = p1[3], p2[3] do
+						local xpos = vector.add(pos, {x=posX, y=posY, z=posZ})
+						if minetest.is_protected(xpos, player_name) then
+							if not protected then
+								protect_node = xpos
+							end
+							protected = true
+						else
+							tunnelbomb_dig(xpos)
+						end
+					end
+				end
+			end
+
+			manip:set_data(vm_nodes)
+			manip:write_to_map()
+			manip:update_map()
+
 			for item,count in pairs(tunnelbomb_drops) do
 				if(count ~= 0) then
 					while count > 99 do
@@ -120,6 +100,7 @@ minetest.register_node("mining_plus:tunnelbomb", {
 		end
 	end,
 })
+local c_air = minetest.get_content_id("air")
 function tunnelbomb_dig(pos)
 	local node = minetest.get_node(pos)
 	if node.name == "air" or node.name == "ignore"
@@ -131,7 +112,7 @@ function tunnelbomb_dig(pos)
 	if(grp.groups.cracky ~= 3) then
 		return
 	end
-	minetest.remove_node(pos)
+	vm_nodes[vm_area:index(pos.x, pos.y, pos.z)] = c_air
 	if(node.name == "default:stone") then
 		tunnelbomb_drops["default:cobble"] = tunnelbomb_drops["default:cobble"] + 1
 		return
