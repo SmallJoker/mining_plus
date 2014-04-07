@@ -10,7 +10,7 @@ minetest.register_craft({
 	}
 })
 
-local tunnelbomb_drops = {}
+local tunnelbomb_drops = nil
 local vm_area, vm_nodes
 minetest.register_node("mining_plus:tunnelbomb", {
 	description = "Tunnel Bomb",
@@ -21,6 +21,9 @@ minetest.register_node("mining_plus:tunnelbomb", {
 	--legacy_facedir_simple = true,
 	sounds = default.node_sound_stone_defaults(),
 	on_punch = function(pos, node, player)
+		if tunnelbomb_drops ~= nil then
+			return
+		end
 		local player_name = player:get_player_name()
 		if minetest.is_protected(pos, player_name) then
 			return
@@ -35,10 +38,6 @@ minetest.register_node("mining_plus:tunnelbomb", {
 				end
 			end
 	
-			local protected = false
-			local protect_node = {x=99999, y=99999, z=99999}
-			tunnelbomb_drops = {}
-			tunnelbomb_drops["default:cobble"] = 0
 			local p1, p2
 			if(node.param2 == 0) then --z++
 				p1 = {-1, 0, 1}
@@ -65,6 +64,11 @@ minetest.register_node("mining_plus:tunnelbomb", {
 			vm_area = VoxelArea:new({MinEdge=emerged_pos1, MaxEdge=emerged_pos2})
 			vm_nodes = manip:get_data()
 
+			local protected = false
+			local protect_node = {x=99999, y=99999, z=99999}
+			tunnelbomb_drops = {}
+			tunnelbomb_drops["default:cobble"] = 0
+			tunnelbomb_drops["::player"] = player
 			for posX = p1[1], p2[1] do
 				for posY = p1[2], p2[2] do
 					for posZ = p1[3], p2[3] do
@@ -86,7 +90,7 @@ minetest.register_node("mining_plus:tunnelbomb", {
 			manip:update_map()
 
 			for item,count in pairs(tunnelbomb_drops) do
-				if(count ~= 0) then
+				if(item ~= "::player" and count ~= 0) then
 					while count > 99 do
 						minetest.add_item(pos, item.." 99")
 						count = count - 99
@@ -94,6 +98,7 @@ minetest.register_node("mining_plus:tunnelbomb", {
 					minetest.add_item(pos, item.." "..count)
 				end
 			end
+			tunnelbomb_drops = nil
 			if(protected) then
 				minetest.record_protection_violation(protect_node, player_name)
 			end
@@ -108,9 +113,11 @@ function tunnelbomb_dig(pos)
 		or node.name == "default:water_source" or node.name == "default:water_flowing" then
 		return
 	end
-	local grp = minetest.registered_nodes[node.name]
-	if(grp.groups.cracky ~= 3) then
-		return
+	local node_data = minetest.registered_nodes[node.name]
+	if node_data.can_dig ~= nil then
+		if not node_data.can_dig(pos, tunnelbomb_drops["::player"]) then
+			return
+		end
 	end
 	vm_nodes[vm_area:index(pos.x, pos.y, pos.z)] = c_air
 	if(node.name == "default:stone") then
