@@ -1,0 +1,17 @@
+======>- Version 0.3.0 -<======
+- new license
+- polished cobble
+- serval fixes
+- made tunnelbombs cheaper
+
+======>- Version 0.2.0 -<======
+- added build-sound
+- added 4 direction-support for making bridge
+- added bridge builder
+- added breaknode
+
+======>- Version 0.1.0 -<======
+- added the BOOM sound
+- added (all) 4 facedir direction BOOMs
+- added tunnel bomb node
+===============================
