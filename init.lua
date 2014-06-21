@@ -1,11 +1,18 @@
---Created by Krock for the mining_plus mod
+--Created by Krock for the Mining+ mod
 --License: WTFPL
 
 local mod_path = minetest.get_modpath("mining_plus")
 
+function has_mining_access(meta, player)
+	return (player:get_player_name() == meta:get_string("owner"))
+end
+
 dofile(mod_path.."/tunnelbomb.lua")
 dofile(mod_path.."/bridgebuilder.lua")
 dofile(mod_path.."/autominer.lua")
+if minetest.get_modpath("bitchange") then
+	dofile(mod_path.."/grinder.lua")
+end
 
 minetest.register_node("mining_plus:breaknode", {
     description = "Breaknode",
@@ -14,7 +21,7 @@ minetest.register_node("mining_plus:breaknode", {
 })
 
 minetest.register_craft({
-	output = "mining_plus:breaknode",
+	output = "mining_plus:breaknode 3",
 	recipe = {
 		{ "default:stick" },
 		{ "default:steel_ingot" },
