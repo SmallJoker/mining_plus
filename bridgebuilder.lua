@@ -197,14 +197,14 @@ function bridgebuilder_build_one(pos, node_name)
 			break
 		end
 	end
-	local grp = minetest.registered_nodes[node.name]
-	if(not grp or node.name == node_name or node.name == "ignore" or not is_empty) then
+	local node_data = minetest.registered_nodes[node.name]
+	if(not node_data or node.name == node_name or node.name == "ignore" or not is_empty) then
 		return false
 	end
-	if grp.groups.cracky == 1 then
+	if node_data.groups.cracky == 1 then
 		return false
 	end
-	if node.name ~= "air" and not grp.groups.liquid then
+	if node.name ~= "air" and not node_data.groups.liquidtype ~= "none" then
 		local drops = minetest.get_node_drops(node.name)
 		local drop_pos = {x=pos.x,y=pos.y+1,z=pos.z}
 		for _, item in ipairs(drops) do

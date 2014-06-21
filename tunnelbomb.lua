@@ -89,7 +89,7 @@ minetest.register_node("mining_plus:tunnelbomb", {
 			manip:update_map()
 
 			for item,count in pairs(tunnelbomb_drops) do
-				if(item ~= "::player" and count ~= 0) then
+				if item ~= "::player" and count ~= 0 then
 					while count > 99 do
 						minetest.add_item(pos, item.." 99")
 						count = count - 99
@@ -98,7 +98,7 @@ minetest.register_node("mining_plus:tunnelbomb", {
 				end
 			end
 			tunnelbomb_drops = nil
-			if(protected) then
+			if protected then
 				minetest.record_protection_violation(protect_node, player_name)
 			end
 		end
