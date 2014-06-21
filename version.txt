@@ -1,3 +1,7 @@
+======>- Version G-I-T -<======
+- grinder node
+- code cleanup
+
 ======>- Version 0.3.0 -<======
 - new license
 - polished cobble
