@@ -179,7 +179,7 @@ function bridgebuilder_build(pos, direction, player_name)
 		protected = true
 		protect_node = movepos
 	else
-		swap_node(pos, movepos)
+		move_node(pos, movepos)
 	end
 	if protected then
 		minetest.record_protection_violation(protect_node, player_name)
@@ -215,7 +215,7 @@ function bridgebuilder_build_one(pos, node_name)
 	return true
 end
 
-function swap_node(pos, newpos)
+function move_node(pos, newpos)
 	local node = minetest.get_node(pos)
 	if node.name == "ignore" then
 		return
