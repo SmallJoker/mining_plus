@@ -11,8 +11,10 @@ grinder_recipes["default:jungletree"]	= {"moreblocks:jungle_stick",	16}
 grinder_recipes["default:obsidian"]		= {"default:obsidian_shard",	5}
 grinder_recipes["default:ice"]			= {"default:snow",		4}
 
-for i,v in ipairs({"beech", "apple_tree", "oak", "sequoia", "birch", "palm", "spruce", "pine", "willow", "rubber_tree", "fir"}) do
-	grinder_recipes["moretrees:"..v.."_trunk"] = {"moretrees:"..v.."_stick", 16}
+if minetest.registered_items["moretrees:beech_stick"] then
+	for i,v in ipairs({"beech", "apple_tree", "oak", "sequoia", "birch", "palm", "spruce", "pine", "willow", "rubber_tree", "fir"}) do
+		grinder_recipes["moretrees:"..v.."_trunk"] = {"moretrees:"..v.."_stick", 16}
+	end
 end
 
 if unified_inventory then
@@ -27,7 +29,7 @@ if unified_inventory then
 end
 
 local function set_infotext(meta, mode)
-	if(mode == meta:get_int("state")) then
+	if mode == meta:get_int("state") then
 		return
 	end
 	local owner = meta:get_string("owner")
@@ -77,18 +79,20 @@ minetest.register_node("mining_plus:grinder", {
 		"mining_autominer_side.png", "mining_autominer_side.png", "mining_grinder_front.png"},
 	paramtype2 = "facedir",
 	groups = {cracky=1, tubedevice=1, tubedevice_receiver=1},
-	tube = {insert_object = function(pos, node, stack, direction)
-				local meta = minetest.get_meta(pos)
-				local inv = meta:get_inventory()
-				return inv:add_item("src", stack)
-			end,
-			can_insert = function(pos, node, stack, direction)
-				local meta = minetest.get_meta(pos)
-				local inv = meta:get_inventory()
-				return inv:room_for_item("src", stack)
-			end,
-			input_inventory="dst",
-			connect_sides = {left=1, right=1, back=1, top=1, bottom=1}},
+	tube = {
+		insert_object = function(pos, node, stack, direction)
+			local meta = minetest.get_meta(pos)
+			local inv = meta:get_inventory()
+			return inv:add_item("src", stack)
+		end,
+		can_insert = function(pos, node, stack, direction)
+			local meta = minetest.get_meta(pos)
+			local inv = meta:get_inventory()
+			return inv:room_for_item("src", stack)
+		end,
+		input_inventory="dst",
+		connect_sides = {left=1, right=1, back=1, top=1, bottom=1}
+	},
 	sounds = default.node_sound_stone_defaults(),
 	after_place_node = function(pos, placer, itemstack)
 		local meta = minetest.get_meta(pos)
@@ -110,15 +114,14 @@ minetest.register_node("mining_plus:grinder", {
 	end,
 	allow_metadata_inventory_put = function(pos, listname, index, stack, player)
 		local meta = minetest.get_meta(pos)
-		local player_name = player:get_player_name()
-		if(player_name == ":pipeworks") then
+		if player:get_player_name() == ":pipeworks" then
 			return stack:get_count()
 		end
-		if(player_name ~= meta:get_string("owner")) then
+		if not has_mining_access(player, meta) then
 			return 0
 		end
 		
-		if(listname == "src" or listname == "fuel") then
+		if listname == "src" or listname == "fuel" then
 			if(stack:get_wear() == 0) then
 				return stack:get_count()
 			end
@@ -127,19 +130,18 @@ minetest.register_node("mining_plus:grinder", {
 	end,
 	allow_metadata_inventory_take = function(pos, listname, index, stack, player)
 		local meta = minetest.get_meta(pos)
-		local player_name = player:get_player_name()
-		if(player_name == ":pipeworks") then
+		if player:get_player_name() == ":pipeworks" then
 			return stack:get_count()
 		end
-		if(player_name == meta:get_string("owner")) then
+		if has_mining_access(player, meta) then
 			return stack:get_count()
 		end
 		return 0
 	end,
 	can_dig = function(pos, player)
 		local meta = minetest.get_meta(pos)
-		local inv = meta:get_inventory()
-		if(meta:get_string("owner") == player:get_player_name()) then
+		if has_mining_access(player, meta) then
+			local inv = meta:get_inventory()
 			return inv:is_empty("src") and inv:is_empty("dst") and inv:is_empty("fuel") and inv:is_empty("ej")
 		end
 		return 0
@@ -154,25 +156,25 @@ minetest.register_abm({
 		local meta = minetest.get_meta(pos)
 		local inv = meta:get_inventory()
 		
-		if(inv:is_empty("src") or not inv:is_empty("ej")) then
+		if inv:is_empty("src") or not inv:is_empty("ej") then
 			set_infotext(meta, 1)
 			return
 		end
 		local src = inv:get_stack("src", 1)
 		
-		if(src:get_count() < 4 or src:get_wear() ~= 0) then
+		if src:get_count() < 4 or src:get_wear() ~= 0 then
 			set_infotext(meta, 1)
 			return
 		end
 		
 		local src_name = src:get_name()
-		if(not grinder_recipes[src_name]) then
+		if not grinder_recipes[src_name] then
 			set_infotext(meta, 1)
 			return
 		end
 		
 		local fuel = inv:get_stack("fuel", 1)
-		if(fuel:is_empty() or fuel:get_name() ~= "bitchange:mineninth") then
+		if fuel:is_empty() or fuel:get_name() ~= "bitchange:mineninth" then
 			set_infotext(meta, 1)
 			return
 		end

@@ -3,8 +3,13 @@
 
 local mod_path = minetest.get_modpath("mining_plus")
 
-function has_mining_access(meta, player)
-	return (player:get_player_name() == meta:get_string("owner"))
+function has_mining_access(player, meta)
+	local player_name = player
+	print ("s "..type(player))
+	if type(player) ~= "string" then
+		player_name = player:get_player_name()
+	end
+	return (player_name == meta:get_string("owner"))
 end
 
 dofile(mod_path.."/tunnelbomb.lua")

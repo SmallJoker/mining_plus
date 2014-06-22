@@ -10,11 +10,11 @@ minetest.register_craft({
 	}
 })
 
-local function bridgebuilder_make_formspec(meta)
-	meta:set_string("formspec", "size[8,6;]"..
+local function bridgebuilder_make_formspec(num)
+	return		("size[8,6;]"..
 				"label[0,0;Bridge Builder]"..
 				"button_exit[2.5,0;2.5,1;inv_save;Save changes]"..
-				"field[6.2,0.4;2,1;wide;Wideness;"..meta:get_int("wide").."]"..
+				"field[6.2,0.4;2,1;wide;Wideness;"..num.."]"..
 				"label[0,1;Building materials:]"..
 				"list[current_name;buildsrc;4,1;1,1;]"..
 				"list[current_player;main;0,2;8,4;]")
@@ -42,14 +42,14 @@ minetest.register_node("mining_plus:bridgebuilder", {
 		meta:set_string("infotext", "Bridge Builder (constructing)")
 		meta:set_string("owner", "")
 		meta:set_int("wide", 1)
-		bridgebuilder_make_formspec(meta)
+		meta:set_string("formspec", bridgebuilder_make_formspec(1))
 		local inv = meta:get_inventory()
 		inv:set_size("buildsrc", 1)
 	end,
 	can_dig = function(pos, player)
 		local meta = minetest.get_meta(pos);
 		local inv = meta:get_inventory()
-		return inv:is_empty("buildsrc") and inv:is_empty("dug")
+		return inv:is_empty("buildsrc")
 	end,
 	allow_metadata_inventory_move = function(pos, from_list, from_index, to_list, to_index, count, player)
 		local meta = minetest.get_meta(pos)
@@ -75,7 +75,7 @@ minetest.register_node("mining_plus:bridgebuilder", {
 	on_punch = function(pos, node, player)
 		local meta = minetest.get_meta(pos)
 		local player_name = player:get_player_name()
-		if not has_mining_access(meta, player) then
+		if not has_mining_access(player_name, meta) then
 			minetest.chat_send_player(player_name, "You are not allowed to use this bridge builder.")
 			return
 		end
@@ -88,7 +88,7 @@ minetest.register_node("mining_plus:bridgebuilder", {
 		if not fields.inv_save then return end
 		local meta = minetest.get_meta(pos)
 		local player_name = player:get_player_name()
-		if not has_mining_access(meta, player) then
+		if not has_mining_access(player_name, meta) then
 			minetest.chat_send_player(player_name, "You are not allowed to configure this bridge builder.")
 			return
 		end
@@ -102,7 +102,7 @@ minetest.register_node("mining_plus:bridgebuilder", {
 			return
 		end
 		meta:set_int("wide", wideness)
-		bridgebuilder_make_formspec(meta)
+		meta:set_string("formspec", bridgebuilder_make_formspec(wideness))
 		minetest.chat_send_player(player_name, "Changes saved!")
 	end,
 })
