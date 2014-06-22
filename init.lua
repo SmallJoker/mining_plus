@@ -5,7 +5,6 @@ local mod_path = minetest.get_modpath("mining_plus")
 
 function has_mining_access(player, meta)
 	local player_name = player
-	print ("s "..type(player))
 	if type(player) ~= "string" then
 		player_name = player:get_player_name()
 	end
