@@ -28,7 +28,11 @@ minetest.register_node("mining_plus:tunnelbomb", {
 			return
 		end
 		if player:get_wielded_item():get_name() == "default:torch" then
-			minetest.sound_play("exploding0", {pos=pos})
+			minetest.sound_play("exploding0", {
+				pos=pos,
+				max_hear_distance = 8,
+				gain = 0.5,
+			})
 			minetest.remove_node(pos)
 			local nearto = minetest.get_objects_inside_radius(pos, 3)
 			for _, obj in pairs(nearto) do
