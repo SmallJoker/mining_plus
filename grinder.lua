@@ -1,5 +1,5 @@
---Grinder, grinds... how easy.
---License: WTFPL
+-- Grinder node, grinds nodes.
+-- License: WTFPL
 
 local grinder_recipes = {}
 -- input | output
@@ -7,17 +7,20 @@ grinder_recipes["default:stone"]		= {"default:sand",		2}
 grinder_recipes["default:cobble"]		= {"default:gravel",	1}
 grinder_recipes["default:gravel"]		= {"default:dirt",		1}
 grinder_recipes["default:tree"]			= {"default:stick",		16}
-grinder_recipes["default:jungletree"]	= {"moreblocks:jungle_stick",	16}
-grinder_recipes["default:obsidian"]		= {"default:obsidian_shard",	5}
+if minetest.get_modpath("moreblocks") then
+	grinder_recipes["default:jungletree"]	= {"moreblocks:jungle_stick",	16}
+end
+grinder_recipes["default:obsidian"]		= {"default:obsidian_shard",	9}
 grinder_recipes["default:ice"]			= {"default:snow",		4}
 
-if minetest.registered_items["moretrees:beech_stick"] then
+if minetest.get_modpath("moretrees") and
+		minetest.registered_items["moretrees:beech_stick"] then
 	for i,v in ipairs({"beech", "apple_tree", "oak", "sequoia", "birch", "palm", "spruce", "pine", "willow", "rubber_tree", "fir"}) do
 		grinder_recipes["moretrees:"..v.."_trunk"] = {"moretrees:"..v.."_stick", 16}
 	end
 end
 
-if unified_inventory then
+if minetest.get_modpath("unified_inventory") and unified_inventory then
 	for k,v in pairs(grinder_recipes) do
 		unified_inventory.register_craft({
 			type = "grinding",
@@ -35,14 +38,14 @@ local function set_infotext(meta, mode)
 	local owner = meta:get_string("owner")
 	local text = "Grinder "
 	local text2 = "[Inactive]"
-	if(mode == 0) then
+	if mode == 0 then
 		text = text.."(constructing)"
-	elseif(mode == 1) then
+	elseif mode == 1 then
 		text2 = "Inactive"
-	elseif(mode == 2) then
+	elseif mode == 2 then
 		text2 = "Active"
 	end
-	if(mode ~= 0) then
+	if mode ~= 0 then
 		 text = text.."["..text2.."] (owned by "..owner..")"
 	end
 	
@@ -90,7 +93,7 @@ minetest.register_node("mining_plus:grinder", {
 			local inv = meta:get_inventory()
 			return inv:room_for_item("src", stack)
 		end,
-		input_inventory="dst",
+		input_inventory = "dst",
 		connect_sides = {left=1, right=1, back=1, top=1, bottom=1}
 	},
 	sounds = default.node_sound_stone_defaults(),
@@ -122,7 +125,7 @@ minetest.register_node("mining_plus:grinder", {
 		end
 		
 		if listname == "src" or listname == "fuel" then
-			if(stack:get_wear() == 0) then
+			if stack:get_wear() == 0 then
 				return stack:get_count()
 			end
 		end
@@ -148,9 +151,11 @@ minetest.register_node("mining_plus:grinder", {
 	end,
 })
 
+local grind_nodes_per_step = 4
+local grind_consume_fuel = 1
 minetest.register_abm({
 	nodenames = {"mining_plus:grinder"},
-	interval = 5,
+	interval = grind_nodes_per_step + 1,
 	chance = 2,
 	action = function(pos, node, active_object_count, active_object_count_wider)
 		local meta = minetest.get_meta(pos)
@@ -162,7 +167,7 @@ minetest.register_abm({
 		end
 		local src = inv:get_stack("src", 1)
 		
-		if src:get_count() < 4 or src:get_wear() ~= 0 then
+		if src:get_count() < grind_nodes_per_step or src:get_wear() ~= 0 then
 			set_infotext(meta, 1)
 			return
 		end
@@ -174,14 +179,15 @@ minetest.register_abm({
 		end
 		
 		local fuel = inv:get_stack("fuel", 1)
-		if fuel:is_empty() or fuel:get_name() ~= "bitchange:mineninth" then
+		if fuel:get_count() < grind_consume_fuel or fuel:get_name() ~= "bitchange:mineninth" then
 			set_infotext(meta, 1)
 			return
 		end
 		
-		inv:remove_item("src", src_name.." 4")
-		inv:remove_item("fuel", "bitchange:mineninth 1")
-		local item_str = grinder_recipes[src_name][1].." "..(grinder_recipes[src_name][2] * 4)
+		inv:remove_item("src", src_name.." "..grind_nodes_per_step)
+		fuel:take_item(grind_consume_fuel)
+		inv:set_list("fuel", {fuel})
+		local item_str = grinder_recipes[src_name][1].." "..(grinder_recipes[src_name][2] * grind_nodes_per_step)
 		if inv:room_for_item("dst", item_str) then
 			inv:add_item("dst", item_str)
 		else
