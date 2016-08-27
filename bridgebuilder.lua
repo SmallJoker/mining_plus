@@ -113,11 +113,17 @@ function bridgebuilder_build(pos, direction, player_name)
 	local stack = inv:get_stack("buildsrc", 1)
 	local node_name = stack:get_name()
 	local node_count = stack:get_count()
-	local wide = meta:get_int("wide") - 1
+	local width = meta:get_int("wide") - 1
 	local protected_pos = nil
 
 	if node_count == 0 then
 		minetest.chat_send_player(player_name, "Building material slot is empty.")
+		return
+	end
+
+	local def = minetest.registered_nodes[node_name]
+	if not def or def.after_place_node then
+		minetest.chat_send_player(player_name, "Only regular nodes can be placed.")
 		return
 	end
 	if node_name == "default:cobble" then
@@ -128,7 +134,7 @@ function bridgebuilder_build(pos, direction, player_name)
 	local dir = minetest.facedir_to_dir(direction)
 	local building_dir = {x = dir.z, y = 0, z = dir.x}
 
-	for num = -wide, wide do
+	for num = -width, width do
 		local npos = vector.add(pos, vector.multiply(building_dir, num))
 		npos.y = npos.y - 1
 
