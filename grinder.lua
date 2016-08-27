@@ -1,5 +1,4 @@
 -- Grinder node, grinds nodes.
--- License: WTFPL
 
 local grinder_recipes = {}
 -- input | output
@@ -48,10 +47,10 @@ local function set_infotext(meta, mode)
 	if mode ~= 0 then
 		 text = text.."["..text2.."] (owned by "..owner..")"
 	end
-	
+
 	meta:set_int("state", mode)
 	meta:set_string("infotext", text)
-	
+
 	local formspec = ("size[8,9]"..
 		"label[0,0;Grinder]"..
 		"label[0.5,1;Nodes to grind:]"..
@@ -123,7 +122,7 @@ minetest.register_node("mining_plus:grinder", {
 		if not has_mining_access(player, meta) then
 			return 0
 		end
-		
+
 		if listname == "src" or listname == "fuel" then
 			if stack:get_wear() == 0 then
 				return stack:get_count()
@@ -160,30 +159,31 @@ minetest.register_abm({
 	action = function(pos, node, active_object_count, active_object_count_wider)
 		local meta = minetest.get_meta(pos)
 		local inv = meta:get_inventory()
-		
+
 		if inv:is_empty("src") or not inv:is_empty("ej") then
 			set_infotext(meta, 1)
 			return
 		end
 		local src = inv:get_stack("src", 1)
-		
+
 		if src:get_count() < grind_nodes_per_step or src:get_wear() ~= 0 then
 			set_infotext(meta, 1)
 			return
 		end
-		
+
 		local src_name = src:get_name()
 		if not grinder_recipes[src_name] then
 			set_infotext(meta, 1)
 			return
 		end
-		
+
 		local fuel = inv:get_stack("fuel", 1)
-		if fuel:get_count() < grind_consume_fuel or fuel:get_name() ~= "bitchange:mineninth" then
+		if fuel:get_count() < grind_consume_fuel
+				or (fuel:get_name() ~= "bitchange:mineninth" and fuel:get_name() ~= "default:coal_lump") then
 			set_infotext(meta, 1)
 			return
 		end
-		
+
 		inv:remove_item("src", src_name.." "..grind_nodes_per_step)
 		fuel:take_item(grind_consume_fuel)
 		inv:set_list("fuel", {fuel})
@@ -193,7 +193,7 @@ minetest.register_abm({
 		else
 			inv:add_item("ej", item_str)
 		end
-		
+
 		set_infotext(meta, 2)
 	end
 })

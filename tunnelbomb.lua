@@ -1,17 +1,15 @@
 --Mining Bomb, destroys blocks in a range of 3x3x8
---Created by Krock, WTFPL
 
 minetest.register_craft({
 	output = "mining_plus:tunnelbomb",
 	recipe = {
 		{ "group:wood", "default:obsidian_shard", "group:wood" },
-		{ "default:stick", "default:steel_ingot", "default:stick" },
+		{ "group:stick", "default:steel_ingot", "group:stick" },
 		{ "group:wood", "default:coal_lump", "group:wood" },
 	}
 })
 
-local tunnelbomb_drops = nil
-local vm_area, vm_nodes
+
 minetest.register_node("mining_plus:tunnelbomb", {
 	description = "Tunnel Bomb",
 	tiles = {"mining_tunnelbomb_top.png", "mining_tunnelbomb_top.png", "mining_tunnelbomb_side.png",
@@ -40,92 +38,94 @@ minetest.register_node("mining_plus:tunnelbomb", {
 					obj:set_hp(obj:get_hp() - 4)
 				end
 			end
-	
-			local p1, p2
-			if node.param2 == 0 then --z++
-				p1 = {-1, 0, 1}
-				p2 = {1, 2, 6}
-			elseif node.param2 == 1 then --x++
-				p1 = {1, 0, -1}
-				p2 = {6, 2, 1}
-			elseif node.param2 == 2 then --z--
-				p1 = {-1, 0, -6}
-				p2 = {1, 2, -1}
-			elseif node.param2 == 3 then --x--
-				p1 = {-6, 0, -1}
-				p2 = {-1, 2, 1}
-			else
+
+			if node.param2 > 3 then
 				minetest.chat_send_player(player_name, "Too bad, now you've lost this tunnel bomb.")
 				return
 			end
 
-			local manip = minetest.get_voxel_manip()
-			local emin, emax = manip:read_from_map(
-				{x=pos.x+p1[1],y=pos.y+p1[2],z=pos.z+p1[3]},
-				{x=pos.x+p2[1],y=pos.y+p2[2],z=pos.z+p2[3]}
-			)
-			vm_area = VoxelArea:new({MinEdge=emin, MaxEdge=emax})
-			vm_nodes = manip:get_data()
+			local vec = vector.new
+			local pmin, pmax
+			if node.param2 == 0 then --z++
+				pmin = vec(-1, 0, 1)
+				pmax = vec( 1, 2, 6)
+			elseif node.param2 == 1 then --x++
+				pmin = vec(1, 0, -1)
+				pmax = vec(6, 2,  1)
+			elseif node.param2 == 2 then --z--
+				pmin = vec(-1, 0, -6)
+				pmax = vec( 1, 2, -1)
+			elseif node.param2 == 3 then --x--
+				pmin = vec(-6, 0, -1)
+				pmax = vec(-1, 2,  1)
+			end
 
-			local protected = false
-			local protect_node = {x=99999, y=99999, z=99999}
-			tunnelbomb_drops = {}
+			pmin = vector.add(pos, pmin)
+			pmax = vector.add(pos, pmax)
+			local manip = minetest.get_voxel_manip()
+			local emin, emax = manip:read_from_map(pmin, pmax)
+			local vm_area = VoxelArea:new({MinEdge=emin, MaxEdge=emax})
+			local vm_nodes = manip:get_data()
+
+			local protected_pos = nil
+			local tunnelbomb_drops = {}
 			tunnelbomb_drops["default:cobble"] = 0
-			tunnelbomb_drops["::player"] = player
-			for posX = p1[1], p2[1] do
-				for posY = p1[2], p2[2] do
-					for posZ = p1[3], p2[3] do
-						local xpos = vector.add(pos, {x=posX, y=posY, z=posZ})
-						if minetest.is_protected(xpos, player_name) then
-							if not protected then
-								protect_node = xpos
-							end
-							protected = true
-						else
-							tunnelbomb_dig(xpos)
-						end
-					end
+			tunnelbomb_drops[":current player"] = player
+
+			for z = pmin.z, pmax.z do
+			for y = pmin.y, pmax.y do
+			for x = pmin.x, pmax.x do
+				local xpos = vec(x, y, z)
+				if minetest.is_protected(xpos, player_name) then
+					protected_pos = xpos
+				else
+					tunnelbomb_dig(xpos, tunnelbomb_drops, vm_area, vm_nodes)
 				end
+			end
+			end
 			end
 
 			manip:set_data(vm_nodes)
 			manip:write_to_map()
 			manip:update_map()
 
-			for item,count in pairs(tunnelbomb_drops) do
-				if item ~= "::player" and count ~= 0 then
-					while count > 99 do
-						minetest.add_item(pos, item.." 99")
-						count = count - 99
+			for item, count in pairs(tunnelbomb_drops) do
+				if item ~= ":current player" and count > 0 then
+					local def = minetest.registered_items[item]
+					if def and def.stack_max then
+						while count > def.stack_max do
+							minetest.add_item(pos, item .." ".. def.stack_max)
+							count = count - def.stack_max
+						end
+						minetest.add_item(pos, item .." ".. count)
 					end
-					minetest.add_item(pos, item.." "..count)
 				end
 			end
 			tunnelbomb_drops = nil
-			if protected then
-				minetest.record_protection_violation(protect_node, player_name)
+			if protected_pos then
+				minetest.record_protection_violation(protected_pos, player_name)
 			end
 		end
 	end,
 })
 
 local c_air = minetest.get_content_id("air")
-function tunnelbomb_dig(pos)
+function tunnelbomb_dig(pos, tunnelbomb_drops, vm_area, vm_nodes)
 	local node = minetest.get_node(pos)
 	if node.name == "air" or node.name == "ignore" then
 		return
 	end
-	
+
 	local node_data = minetest.registered_nodes[node.name]
 	if node_data.can_dig then
-		if not node_data.can_dig(pos, tunnelbomb_drops["::player"]) then
+		if not node_data.can_dig(pos, tunnelbomb_drops[":current player"]) then
 			return
 		end
 	end
 	if node_data.liquidtype ~= "none" then
 		return
 	end
-	
+
 	vm_nodes[vm_area:index(pos.x, pos.y, pos.z)] = c_air
 	if node.name == "default:stone" then
 		tunnelbomb_drops["default:cobble"] = tunnelbomb_drops["default:cobble"] + 1

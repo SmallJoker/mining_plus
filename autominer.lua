@@ -1,5 +1,4 @@
 --Autominer, destroys blocks automatically
---License: WTFPL
 
 minetest.register_craft({
 	output = "mining_plus:autominer",
@@ -67,7 +66,7 @@ minetest.register_node("mining_plus:autominer", {
 		if not has_mining_access(player, meta) then
 			return 0
 		end
-		
+
 		if listname == "src" then
 			if stack:get_wear() == 0 then
 				return stack:get_count()
@@ -102,16 +101,16 @@ minetest.register_abm({
 	action = function(pos, node, active_object_count, active_object_count_wider)
 		local meta = minetest.get_meta(pos)
 		local inv = meta:get_inventory()
-		
+
 		if inv:is_empty("src") or not inv:is_empty("ej") then
 			return
 		end
 		local src = inv:get_stack("src", 1)
-		
+
 		if src:get_count() < 4 or src:get_wear() ~= 0 then
 			return
 		end
-		
+
 		local src_name = src:get_name()
 		local drops = minetest.get_node_drops(src_name)
 		local count = 0
@@ -125,7 +124,7 @@ minetest.register_abm({
 			inv:add_item("dst", item_name.." "..item_count)
 			count = count + 1
 		end
-		
+
 		if count > 0 then
 			inv:remove_item("src", src_name.." 4")
 		end

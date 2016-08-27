@@ -1,5 +1,4 @@
 --Bridge Builder, builds blocks
---Created by Krock, WTFPL
 
 minetest.register_craft({
 	output = "mining_plus:bridgebuilder",
@@ -22,11 +21,11 @@ end
 
 minetest.register_node("mining_plus:bridgebuilder", {
 	description = "Bridge Builder",
-	tiles = {"mining_bridgebuilder_top.png", 
-			"mining_bridgebuilder_top.png", 
+	tiles = {"mining_bridgebuilder_top.png",
+			"mining_bridgebuilder_top.png",
 			"mining_bridgebuilder_side.png",
-			"mining_bridgebuilder_side.png", 
-			"mining_bridgebuilder_back.png", 
+			"mining_bridgebuilder_side.png",
+			"mining_bridgebuilder_back.png",
 			"mining_bridgebuilder_front.png"},
 	paramtype2 = "facedir",
 	groups = {cracky=1, level=2},
@@ -76,7 +75,8 @@ minetest.register_node("mining_plus:bridgebuilder", {
 		local meta = minetest.get_meta(pos)
 		local player_name = player:get_player_name()
 		if not has_mining_access(player_name, meta) then
-			minetest.chat_send_player(player_name, "You are not allowed to use this bridge builder.")
+			minetest.chat_send_player(player_name, "This bridge biulder belongs to "..
+					meta:get_string("owner") .. ". You are not allowed to use it.")
 			return
 		end
 		if player:get_wielded_item():get_name() ~= "default:torch" then
@@ -114,10 +114,8 @@ function bridgebuilder_build(pos, direction, player_name)
 	local node_name = stack:get_name()
 	local node_count = stack:get_count()
 	local wide = meta:get_int("wide") - 1
-	local protected = false
-	local protect_node = {x=99999, y=99999, z=99999}
-	local node_dir = {x=0,y=0,z=0}
-	
+	local protected_pos = nil
+
 	if node_count == 0 then
 		minetest.chat_send_player(player_name, "Building material slot is empty.")
 		return
@@ -127,62 +125,39 @@ function bridgebuilder_build(pos, direction, player_name)
 		return
 	end
 	minetest.sound_play("building0", {pos=pos})
-	if direction == 0 or direction == 2 then --z++ , z--
-		for posX = -wide, wide do
-			local npos = {x=pos.x+posX,y=pos.y-1,z=pos.z}
-			if minetest.is_protected(npos, player_name) then
-				protected = true
-				protect_node = npos
-			elseif node_name ~= "" then
-				if bridgebuilder_build_one(npos, node_name) then
-					node_count = node_count - 1
-				end
-			end
-			if node_count <= 0 then
-				break
-			end
-		end
-		if direction == 0 then
-			node_dir.z = 1;
-		else
-			node_dir.z = -1;
-		end
-	elseif direction == 1 or direction == 3 then --x++ , x--
-		for posZ = -wide, wide do
-			local npos = {x=pos.x, y=pos.y-1, z=pos.z+posZ}
-			if minetest.is_protected(npos, player_name) then
-				protected = true
-				protect_node = npos
-			elseif node_name ~= "" then
-				if bridgebuilder_build_one(npos, node_name) then
-					node_count = node_count - 1
-				end
-			end
-			if node_count <= 0 then
-				break
+	local dir = minetest.facedir_to_dir(direction)
+	local building_dir = {x = dir.z, y = 0, z = dir.x}
+
+	for num = -wide, wide do
+		local npos = vector.add(pos, vector.multiply(building_dir, num))
+		npos.y = npos.y - 1
+
+		if minetest.is_protected(npos, player_name) then
+			protected_pos = npos
+		elseif node_name ~= "" then
+			if bridgebuilder_build_one(npos, node_name) then
+				node_count = node_count - 1
 			end
 		end
-		if direction == 1 then
-			node_dir.x = 1;
-		else
-			node_dir.x = -1;
+		if node_count <= 0 then
+			break
 		end
 	end
+
 	if node_count > 0 then
 		inv:set_list("buildsrc", { node_name.." "..node_count })
 	else
 		inv:set_list("buildsrc", {})
 		minetest.chat_send_player(player_name, "Building material slot is empty.")
 	end
-	local movepos = {x=pos.x+node_dir.x,y=pos.y+node_dir.y,z=pos.z+node_dir.z}
+	local movepos = vector.add(pos, dir)
 	if minetest.is_protected(movepos, player_name) then
-		protected = true
-		protect_node = movepos
+		protected_pos = movepos
 	else
 		move_node(pos, movepos)
 	end
-	if protected then
-		minetest.record_protection_violation(protect_node, player_name)
+	if protected_pos then
+		minetest.record_protection_violation(protected_pos, player_name)
 	end
 end
 
@@ -191,14 +166,14 @@ function bridgebuilder_build_one(pos, node_name)
 	local node_table = minetest.get_meta(pos):to_table()
 	local node_inv = minetest.get_meta(pos):get_inventory()
 	local is_empty = true
-	for listname,list in pairs(node_table.inventory) do
+	for listname, list in pairs(node_table.inventory) do
 		if not node_inv:is_empty(listname) then
 			is_empty = false
 			break
 		end
 	end
 	local node_data = minetest.registered_nodes[node.name]
-	if(not node_data or node.name == node_name or node.name == "ignore" or not is_empty) then
+	if not node_data or node.name == node_name or not is_empty then
 		return false
 	end
 	if node_data.groups.cracky == 1 then
@@ -220,10 +195,10 @@ function move_node(pos, newpos)
 	if node.name == "ignore" then
 		return
 	end
+
 	local newnode = minetest.get_node(newpos)
-	if newnode.name == "air" or 
-			newnode.name == "default:lava_flowing" or 
-			newnode.name == "default:water_flowing" then
+	local def = minetest.registered_nodes[newnode.name]
+	if def and def.buildable_to then
 		local meta = minetest.get_meta(pos):to_table()
 		minetest.set_node(newpos, node)
 		minetest.get_meta(newpos):from_table(meta)

@@ -1,5 +1,4 @@
 --Created by Krock for the Mining+ mod
---License: WTFPL
 
 local mod_path = minetest.get_modpath("mining_plus")
 
@@ -14,9 +13,7 @@ end
 dofile(mod_path.."/tunnelbomb.lua")
 dofile(mod_path.."/bridgebuilder.lua")
 dofile(mod_path.."/autominer.lua")
-if minetest.get_modpath("bitchange") then
-	dofile(mod_path.."/grinder.lua")
-end
+dofile(mod_path.."/grinder.lua")
 
 minetest.register_node("mining_plus:breaknode", {
     description = "Breaknode",
